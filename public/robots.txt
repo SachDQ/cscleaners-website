@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cscleaners.com.au/sitemap.xml

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#023E8A"/>
+      <stop offset="100%" stop-color="#0077B6"/>
+    </linearGradient>
+    <linearGradient id="nd" x1="24" y1="5" x2="24" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE566"/>
+      <stop offset="100%" stop-color="#F4A429"/>
+    </linearGradient>
+    <clipPath id="cc"><circle cx="24" cy="24" r="22"/></clipPath>
+  </defs>
+  <circle cx="24" cy="24" r="23.5" fill="url(#bg)"/>
+  <circle cx="24" cy="24" r="21.5" fill="none" stroke="#90E0EF" stroke-width="0.7" stroke-opacity="0.5"/>
+  <line x1="24" y1="2.2" x2="24" y2="5.8" stroke="#FFE566" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="24" y1="42.5" x2="24" y2="45.5" stroke="#90E0EF" stroke-width="0.9" stroke-linecap="round" stroke-opacity="0.4"/>
+  <line x1="2.5" y1="24" x2="5.5" y2="24" stroke="#90E0EF" stroke-width="0.9" stroke-linecap="round" stroke-opacity="0.4"/>
+  <line x1="42.5" y1="24" x2="45.5" y2="24" stroke="#90E0EF" stroke-width="0.9" stroke-linecap="round" stroke-opacity="0.4"/>
+  <g clip-path="url(#cc)">
+    <path d="M 11,19.5 L 13.5,12.5 L 21.5,11.5 L 21.5,16.5 L 26,16.5 L 26,11.5 L 27.5,11.5 L 30,10.5 L 31.5,12.5 C 33,15.5 33.5,19 33,24.5 C 31,26.5 27,26.5 22,26.5 C 17.5,26.5 13.5,25.5 11,23 Z" fill="white" fill-opacity="0.22" stroke="white" stroke-width="0.65" stroke-opacity="0.55" stroke-linejoin="round"/>
+  </g>
+  <path d="M 24,31 C 21,30 17.5,32 13,30.5" stroke="#48CAE4" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <path d="M 24,31 C 27,30 30.5,32 35,30.5" stroke="#48CAE4" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <path d="M 24,34 C 20.5,33 16,35 11,33.5" stroke="#90E0EF" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.65"/>
+  <path d="M 24,34 C 27.5,33 32,35 37,33.5" stroke="#90E0EF" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.65"/>
+  <line x1="24" y1="28" x2="24" y2="10.5" stroke="url(#nd)" stroke-width="2.2" stroke-linecap="round"/>
+  <polygon points="24,6 20.5,12 27.5,12" fill="#FFE566"/>
+  <line x1="24" y1="28" x2="24" y2="31" stroke="#3A78C9" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="24" cy="28" r="2.4" fill="#FFE566"/>
+  <circle cx="24" cy="28" r="1" fill="white"/>
+</svg>

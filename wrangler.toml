@@ -1,0 +1,9 @@
+name = "cscleaners"
+compatibility_date = "2024-01-01"
+
+[pages]
+build_output_directory = "out"
+
+[vars]
+NEXT_PUBLIC_WEBHOOK_URL = ""
+NEXT_PUBLIC_GA_ID = ""
