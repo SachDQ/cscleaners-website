@@ -118,7 +118,7 @@ export default function AboutPage() {
                 </div>
               </div>
               <div className="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3]">
-                <Image src="/images/11_team_photo.png" alt="Central Sea Cleaning team" fill className="object-cover" />
+                <Image src="/images/35_team_group_outside.png" alt="Central Sea Cleaning team" fill className="object-cover" />
               </div>
             </div>
           </div>
@@ -180,7 +180,7 @@ export default function AboutPage() {
           <div className="container mx-auto px-6 max-w-6xl">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3]">
-                <Image src="/images/10_cleaner_portrait.png" alt="Central Sea Cleaning professional" fill className="object-cover" />
+                <Image src="/images/33_cleaner_female_kitchen.png" alt="Central Sea Cleaning professional" fill className="object-cover" />
               </div>
               <div>
                 <h2 className="text-3xl font-bold mb-5 text-[#1A1A2E]" style={{ fontFamily: "var(--font-syne), sans-serif" }}>How We Hire</h2>

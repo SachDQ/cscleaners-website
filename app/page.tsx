@@ -221,7 +221,7 @@ export default function HomePage() {
           <div className="container mx-auto px-6 max-w-6xl">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <ScaleIn className="relative rounded-3xl overflow-hidden shadow-xl order-2 lg:order-1">
-                <Image src="/images/11_team_photo.png" alt="Central Sea Cleaning team" width={600} height={450} className="w-full object-cover" />
+                <Image src="/images/35_team_group_outside.png" alt="Central Sea Cleaning team" width={600} height={450} className="w-full object-cover" />
               </ScaleIn>
               <FadeIn direction="left" className="order-1 lg:order-2">
                 <h2 className="text-4xl md:text-5xl font-bold mb-5" style={{ fontFamily: "var(--font-syne), sans-serif", color: "#1A1A2E" }}>
