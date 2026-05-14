@@ -42,8 +42,28 @@ export default async function BlogPostPage({
   const allPosts = getAllPosts();
   const otherPosts = allPosts.filter((p) => p.slug !== slug).slice(0, 3);
 
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt,
+    image: post.image ? `https://cscleaners.com.au${post.image}` : undefined,
+    datePublished: post.date,
+    author: {
+      "@type": "Organization",
+      name: "Central Sea Cleaning",
+      url: "https://cscleaners.com.au",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Central Sea Cleaning",
+      logo: { "@type": "ImageObject", url: "https://cscleaners.com.au/logo.png" },
+    },
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }} />
       <Header />
       <main>
         {/* Hero */}

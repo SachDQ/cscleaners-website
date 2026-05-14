@@ -35,8 +35,37 @@ export default async function SuburbPage({ params }: { params: Promise<{ suburb:
     { emoji: "✨", label: "Specialist Cleaning", href: "/services/specialist-cleaning", price: "From $45" },
   ];
 
+  const localSchema = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `https://cscleaners.com.au/locations/${suburb}/#business`,
+    name: "Central Sea Cleaning",
+    url: `https://cscleaners.com.au/locations/${suburb}/`,
+    telephone: "+61404378911",
+    email: "info@cscleaners.com.au",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: data.name,
+      postalCode: data.postcode,
+      addressRegion: "VIC",
+      addressCountry: "AU",
+    },
+    areaServed: {
+      "@type": "City",
+      name: data.name,
+    },
+    priceRange: "$$",
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.9",
+      reviewCount: "127",
+      bestRating: "5",
+    },
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(localSchema) }} />
       <Header />
       <main>
         {/* Hero */}

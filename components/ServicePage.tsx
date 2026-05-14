@@ -21,8 +21,46 @@ export default function ServicePage({
   title, subtitle, description, heroImage, price, priceNote,
   includes, addOns, faqs, upsell,
 }: ServicePageProps) {
+  const serviceSchema = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: title,
+    description: `${subtitle} ${description}`,
+    provider: {
+      "@type": "LocalBusiness",
+      name: "Central Sea Cleaning",
+      url: "https://cscleaners.com.au",
+      telephone: "+61404378911",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Melbourne",
+        addressRegion: "VIC",
+        addressCountry: "AU",
+      },
+    },
+    areaServed: { "@type": "State", name: "Victoria" },
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "AUD",
+      description: priceNote ?? price,
+      eligibleRegion: { "@type": "State", name: "Victoria" },
+    },
+  };
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <Header />
       <main>
         {/* Hero */}
