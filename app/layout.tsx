@@ -53,6 +53,7 @@ export const metadata: Metadata = {
   },
   alternates: { canonical: "https://cscleaners.com.au" },
   robots: { index: true, follow: true },
+  verification: { google: "onJvqUg6acim4u44dvyaLqIo01RoEB-fqN-WDFqYeag" },
 };
 
 const jsonLd = {
