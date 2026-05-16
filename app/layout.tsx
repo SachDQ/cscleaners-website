@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Syne } from "next/font/google";
 import Script from "next/script";
+import AdPixels from "@/components/AdPixels";
 import "./globals.css";
 
 const inter = Inter({
@@ -132,6 +133,7 @@ export default function RootLayout({
         style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
       >
         {children}
+        <AdPixels />
         {/* GA4 — replace G-XXXXXXXXXX with your Measurement ID */}
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>

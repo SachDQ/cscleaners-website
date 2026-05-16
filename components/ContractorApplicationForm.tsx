@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, CheckCircle, ChevronRight } from "lucide-react";
+import { ArrowRight, CheckCircle, ChevronDown } from "lucide-react";
+import { trackLeadConversion } from "@/lib/tracking";
 
 type Step = 1 | 2 | 3;
 
@@ -9,7 +10,7 @@ const SUBURBS = [
   "Thomastown", "Reservoir", "Preston", "Coburg", "Brunswick",
   "Fitzroy", "Collingwood", "Northcote", "Bundoora", "Epping",
   "Lalor", "Mill Park", "South Morang", "Heidelberg", "Ivanhoe",
-  "Carlton", "Richmond", "Footscray", "Essendon", "Other (specify)",
+  "Carlton", "Richmond", "Footscray", "Essendon",
 ];
 
 const PREMISES = [
@@ -31,41 +32,143 @@ const YES_NO_WILL = [
 ];
 
 const RATE_RANGES = [
-  "Under $30/hr",
-  "$30–$35/hr",
-  "$35–$40/hr",
-  "$40–$45/hr",
-  "$45/hr+",
-  "Negotiable / per-job",
+  { key: "under_30", label: "Under $30/hr" },
+  { key: "30_35", label: "$30–$35/hr" },
+  { key: "35_40", label: "$35–$40/hr" },
+  { key: "40_45", label: "$40–$45/hr" },
+  { key: "45_plus", label: "$45/hr+" },
+  { key: "negotiable", label: "Negotiable / per-job" },
 ];
 
 const HOURS_RANGES = [
-  "Under 10 hrs/week",
-  "10–20 hrs/week",
-  "20–30 hrs/week",
-  "30–40 hrs/week",
-  "Full-time / 40+ hrs",
-  "Flexible / on-call",
+  { key: "under_10", label: "Under 10 hrs/week" },
+  { key: "10_20", label: "10–20 hrs/week" },
+  { key: "20_30", label: "20–30 hrs/week" },
+  { key: "30_40", label: "30–40 hrs/week" },
+  { key: "full_time", label: "Full-time / 40+ hrs" },
+  { key: "flexible", label: "Flexible / on-call" },
 ];
+
+const EQUIPMENT = [
+  "Backpack / commercial vacuum",
+  "Mop / bucket system",
+  "Floor scrubber",
+  "Carpet extractor",
+  "Window kit",
+  "Vehicle for transport",
+  "Ladder (2m+)",
+  "Eco / commercial chemicals",
+];
+
+const SELECT_CLASS =
+  "w-full appearance-none rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 pr-10 text-sm text-[#1A1A2E] focus:outline-none focus:border-[#0077B6] cursor-pointer";
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  required,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { key: string; label: string }[];
+  required?: boolean;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-bold text-gray-700 mb-1">
+        {label} {required && "*"}
+        {hint && <span className="font-normal text-gray-400 ml-1">({hint})</span>}
+      </label>
+      <div className="relative">
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={SELECT_CLASS}>
+          <option value="">Select…</option>
+          {options.map((o) => (
+            <option key={o.key} value={o.key}>{o.label}</option>
+          ))}
+        </select>
+        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
+function MultiSelectDisclosure({
+  label,
+  selected,
+  options,
+  onToggle,
+  required,
+  placeholder,
+  cols = 2,
+}: {
+  label: string;
+  selected: string[];
+  options: string[];
+  onToggle: (v: string) => void;
+  required?: boolean;
+  placeholder: string;
+  cols?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const summary = selected.length === 0 ? placeholder : `${selected.length} selected · ${selected.slice(0, 2).join(", ")}${selected.length > 2 ? "…" : ""}`;
+  const gridClass = cols === 3 ? "grid-cols-3" : "grid-cols-2";
+  return (
+    <div>
+      <label className="block text-sm font-bold text-gray-700 mb-1">
+        {label} {required && "*"}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-sm text-left text-[#1A1A2E] hover:border-gray-300 transition-colors"
+      >
+        <span className={selected.length === 0 ? "text-gray-400" : ""}>{summary}</span>
+        <ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-2 p-3 rounded-2xl border border-gray-100 bg-gray-50">
+          <div className={`grid ${gridClass} gap-2`}>
+            {options.map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => onToggle(o)}
+                className="p-2 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] text-left transition-all"
+                style={{
+                  borderColor: selected.includes(o) ? "#0077B6" : "#e5e7eb",
+                  background: selected.includes(o) ? "#e8f4fd" : "white",
+                }}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ContractorApplicationForm() {
   const [step, setStep] = useState<Step>(1);
 
-  // About you
   const [name, setName] = useState("");
   const [abn, setAbn] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [yearsExp, setYearsExp] = useState("");
 
-  // Coverage + experience
   const [suburbs, setSuburbs] = useState<string[]>([]);
-  const [otherSuburb, setOtherSuburb] = useState("");
+  const [otherSuburbs, setOtherSuburbs] = useState("");
   const [premisesExp, setPremisesExp] = useState<string[]>([]);
   const [hoursAvailable, setHoursAvailable] = useState("");
   const [rateExpectation, setRateExpectation] = useState("");
 
-  // Compliance
   const [publicLiability, setPublicLiability] = useState("");
   const [policeCheck, setPoliceCheck] = useState("");
   const [wwcc, setWwcc] = useState("");
@@ -82,7 +185,7 @@ export default function ContractorApplicationForm() {
   };
 
   const canAdvance1 = name && email && phone;
-  const canAdvance2 = suburbs.length > 0 && premisesExp.length > 0;
+  const canAdvance2 = (suburbs.length > 0 || otherSuburbs.trim().length > 0) && premisesExp.length > 0;
   const canSubmit = publicLiability && policeCheck;
 
   const handleSubmit = async () => {
@@ -91,19 +194,16 @@ export default function ContractorApplicationForm() {
       formType: "contractor_application",
       submittedAt: new Date().toISOString(),
       source: "cscleaners.com.au/contractor",
-      // About
       name,
       abn,
       email,
       phone,
       yearsExperience: yearsExp,
-      // Coverage
       suburbs,
-      otherSuburb,
+      otherSuburbs,
       premisesExperience: premisesExp,
       hoursAvailable,
       rateExpectation,
-      // Compliance
       publicLiability,
       policeCheck,
       workingWithChildrenCheck: wwcc,
@@ -129,6 +229,7 @@ export default function ContractorApplicationForm() {
         });
       }
     } catch {}
+    trackLeadConversion("contractor_application", { suburbs: suburbs.join(",") });
     setSubmitting(false);
     setSubmitted(true);
   };
@@ -142,25 +243,13 @@ export default function ContractorApplicationForm() {
         >
           <CheckCircle size={32} className="text-white" />
         </div>
-        <h2
-          className="text-2xl font-bold text-[#1A1A2E] mb-3"
-          style={{ fontFamily: "var(--font-syne), sans-serif" }}
-        >
+        <h2 className="text-2xl font-bold text-[#1A1A2E] mb-3" style={{ fontFamily: "var(--font-syne), sans-serif" }}>
           Thanks — you&apos;re on our panel list
         </h2>
         <p className="text-gray-500 mb-6 max-w-md mx-auto">
           We&apos;ll review your details and add you to our subcontractor panel. When a contract comes up that matches your coverage and capacity, we&apos;ll reach out directly. No pressure, no obligation.
         </p>
-        <p className="text-xs text-gray-400 mb-6">
-          We engage subcontractors at standard market rates above the Cleaning Services Award 2020 minimums, on signed sub-contractor agreements with clear scope and payment terms.
-        </p>
-        <button
-          onClick={() => {
-            setSubmitted(false);
-            setStep(1);
-          }}
-          className="btn btn-outline"
-        >
+        <button onClick={() => { setSubmitted(false); setStep(1); }} className="btn btn-outline">
           Submit another application
         </button>
       </div>
@@ -171,87 +260,78 @@ export default function ContractorApplicationForm() {
     <div className="bg-white rounded-3xl shadow-md overflow-hidden">
       <div className="flex" style={{ background: "#F8F9FA" }}>
         {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className="flex-1 h-1.5"
-            style={{ background: step >= s ? "#0077B6" : "#e5e7eb", transition: "background 0.3s" }}
-          />
+          <div key={s} className="flex-1 h-1.5" style={{ background: step >= s ? "#0077B6" : "#e5e7eb", transition: "background 0.3s" }} />
         ))}
       </div>
 
       <div className="p-8">
         {/* Step 1 — About you */}
         {step === 1 && (
-          <div>
-            <h2
-              className="text-2xl font-bold text-[#1A1A2E] mb-2"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
-            >
-              Tell us about you
-            </h2>
-            <p className="text-gray-400 text-sm mb-6">
-              We&apos;re building a panel of vetted cleaners for contracts we&apos;re pursuing across northern Melbourne. This takes 3 minutes.
-            </p>
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1A1A2E] mb-1" style={{ fontFamily: "var(--font-syne), sans-serif" }}>
+                Tell us about you
+              </h2>
+              <p className="text-gray-400 text-sm">3 minutes. We&apos;re building a panel for contracts we&apos;re pursuing across northern Melbourne.</p>
+            </div>
 
-            <div className="space-y-4 mb-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Full name *</label>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    type="text"
-                    placeholder="Alex Singh"
-                    className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">
-                    ABN <span className="font-normal text-gray-400">(or applied for)</span>
-                  </label>
-                  <input
-                    value={abn}
-                    onChange={(e) => setAbn(e.target.value)}
-                    type="text"
-                    placeholder="11 digits"
-                    className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Email *</label>
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    type="email"
-                    placeholder="you@email.com"
-                    className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Phone *</label>
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    type="tel"
-                    placeholder="04xx xxx xxx"
-                    className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
-                  />
-                </div>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Years cleaning experience <span className="font-normal text-gray-400">(optional)</span>
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Full name *</label>
                 <input
-                  value={yearsExp}
-                  onChange={(e) => setYearsExp(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   type="text"
-                  placeholder="e.g. 3 years residential + 1 year commercial"
+                  placeholder="Alex Singh"
                   className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  ABN <span className="font-normal text-gray-400">(or applied for)</span>
+                </label>
+                <input
+                  value={abn}
+                  onChange={(e) => setAbn(e.target.value)}
+                  type="text"
+                  placeholder="11 digits"
+                  className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Email *</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  placeholder="you@email.com"
+                  className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Phone *</label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  type="tel"
+                  placeholder="04xx xxx xxx"
+                  className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                Years cleaning experience <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                value={yearsExp}
+                onChange={(e) => setYearsExp(e.target.value)}
+                type="text"
+                placeholder="e.g. 3 years residential + 1 year commercial"
+                className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
+              />
             </div>
 
             <button
@@ -265,110 +345,63 @@ export default function ContractorApplicationForm() {
           </div>
         )}
 
-        {/* Step 2 — Coverage + Experience */}
+        {/* Step 2 — Coverage */}
         {step === 2 && (
-          <div>
-            <button onClick={() => setStep(1)} className="text-xs text-gray-400 mb-5 hover:text-[#0077B6]">
+          <div className="space-y-5">
+            <button onClick={() => setStep(1)} className="text-xs text-gray-400 hover:text-[#0077B6]">
               ← Back
             </button>
-            <h2
-              className="text-2xl font-bold text-[#1A1A2E] mb-2"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
-            >
-              Where and what do you cover?
-            </h2>
-            <p className="text-gray-400 text-sm mb-6">
-              We match contracts based on suburb fit and premises experience.
-            </p>
-
-            <div className="mb-5">
-              <label className="block text-sm font-bold text-gray-700 mb-2">Suburbs you can service *</label>
-              <div className="grid grid-cols-3 gap-2">
-                {SUBURBS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggle(s, suburbs, setSuburbs)}
-                    className="p-2 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] transition-all"
-                    style={{
-                      borderColor: suburbs.includes(s) ? "#0077B6" : "#e5e7eb",
-                      background: suburbs.includes(s) ? "#e8f4fd" : "white",
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              {suburbs.includes("Other (specify)") && (
-                <input
-                  value={otherSuburb}
-                  onChange={(e) => setOtherSuburb(e.target.value)}
-                  type="text"
-                  placeholder="Specify other suburbs (comma-separated)"
-                  className="w-full mt-3 rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
-                />
-              )}
+            <div>
+              <h2 className="text-2xl font-bold text-[#1A1A2E] mb-1" style={{ fontFamily: "var(--font-syne), sans-serif" }}>
+                Where and what do you cover?
+              </h2>
+              <p className="text-gray-400 text-sm">We match contracts to your fit.</p>
             </div>
 
-            <div className="mb-5">
-              <label className="block text-sm font-bold text-gray-700 mb-2">Premises types you&apos;ve cleaned *</label>
-              <div className="grid grid-cols-2 gap-2">
-                {PREMISES.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => toggle(p, premisesExp, setPremisesExp)}
-                    className="p-2.5 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] text-left transition-all"
-                    style={{
-                      borderColor: premisesExp.includes(p) ? "#0077B6" : "#e5e7eb",
-                      background: premisesExp.includes(p) ? "#e8f4fd" : "white",
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
+            <MultiSelectDisclosure
+              label="Suburbs you can service"
+              required
+              selected={suburbs}
+              options={SUBURBS}
+              onToggle={(v) => toggle(v, suburbs, setSuburbs)}
+              placeholder="Pick the suburbs you can reach"
+              cols={3}
+            />
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                Other suburbs / notes <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                value={otherSuburbs}
+                onChange={(e) => setOtherSuburbs(e.target.value)}
+                type="text"
+                placeholder="e.g. Pascoe Vale, Glenroy"
+                className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-7">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Hours available</label>
-                <div className="space-y-2">
-                  {HOURS_RANGES.map((h) => (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => setHoursAvailable(h)}
-                      className="w-full p-2 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] text-left transition-all"
-                      style={{
-                        borderColor: hoursAvailable === h ? "#0077B6" : "#e5e7eb",
-                        background: hoursAvailable === h ? "#e8f4fd" : "white",
-                      }}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Rate expectation</label>
-                <div className="space-y-2">
-                  {RATE_RANGES.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRateExpectation(r)}
-                      className="w-full p-2 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] text-left transition-all"
-                      style={{
-                        borderColor: rateExpectation === r ? "#0077B6" : "#e5e7eb",
-                        background: rateExpectation === r ? "#e8f4fd" : "white",
-                      }}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <MultiSelectDisclosure
+              label="Premises types you've cleaned"
+              required
+              selected={premisesExp}
+              options={PREMISES}
+              onToggle={(v) => toggle(v, premisesExp, setPremisesExp)}
+              placeholder="Pick all that apply"
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <SelectField
+                label="Hours available"
+                value={hoursAvailable}
+                onChange={setHoursAvailable}
+                options={HOURS_RANGES}
+              />
+              <SelectField
+                label="Rate expectation"
+                value={rateExpectation}
+                onChange={setRateExpectation}
+                options={RATE_RANGES}
+              />
             </div>
 
             <button
@@ -377,157 +410,91 @@ export default function ContractorApplicationForm() {
               disabled={!canAdvance2}
               className="btn btn-primary w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Continue <ChevronRight size={14} />
+              Continue <ArrowRight size={14} />
             </button>
           </div>
         )}
 
         {/* Step 3 — Compliance */}
         {step === 3 && (
-          <div>
-            <button onClick={() => setStep(2)} className="text-xs text-gray-400 mb-5 hover:text-[#0077B6]">
+          <div className="space-y-5">
+            <button onClick={() => setStep(2)} className="text-xs text-gray-400 hover:text-[#0077B6]">
               ← Back
             </button>
-            <h2
-              className="text-2xl font-bold text-[#1A1A2E] mb-2"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
-            >
-              Compliance and kit
-            </h2>
-            <p className="text-gray-400 text-sm mb-6">
-              We can&apos;t engage subcontractors without these basics. &quot;Will obtain&quot; is fine for now — we&apos;ll help you sort them.
-            </p>
+            <div>
+              <h2 className="text-2xl font-bold text-[#1A1A2E] mb-1" style={{ fontFamily: "var(--font-syne), sans-serif" }}>
+                Compliance and kit
+              </h2>
+              <p className="text-gray-400 text-sm">
+                &quot;Will obtain&quot; is fine for now — we&apos;ll help you sort them.
+              </p>
+            </div>
 
-            <div className="space-y-5 mb-6">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Public liability insurance *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {YES_NO_WILL.map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      onClick={() => setPublicLiability(o.key)}
-                      className="p-2.5 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] transition-all"
-                      style={{
-                        borderColor: publicLiability === o.key ? "#0077B6" : "#e5e7eb",
-                        background: publicLiability === o.key ? "#e8f4fd" : "white",
-                      }}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <SelectField
+              label="Public liability insurance"
+              required
+              value={publicLiability}
+              onChange={setPublicLiability}
+              options={YES_NO_WILL}
+            />
+            <SelectField
+              label="National police check"
+              required
+              value={policeCheck}
+              onChange={setPoliceCheck}
+              options={YES_NO_WILL}
+            />
+            <SelectField
+              label="Working with Children Check"
+              hint="needed for childcare/school work"
+              value={wwcc}
+              onChange={setWwcc}
+              options={YES_NO_WILL}
+            />
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">National police check *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {YES_NO_WILL.map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      onClick={() => setPoliceCheck(o.key)}
-                      className="p-2.5 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] transition-all"
-                      style={{
-                        borderColor: policeCheck === o.key ? "#0077B6" : "#e5e7eb",
-                        background: policeCheck === o.key ? "#e8f4fd" : "white",
-                      }}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <MultiSelectDisclosure
+              label="Equipment owned"
+              selected={equipment}
+              options={EQUIPMENT}
+              onToggle={(v) => toggle(v, equipment, setEquipment)}
+              placeholder="What kit do you bring?"
+            />
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Working with Children Check <span className="font-normal text-gray-400">(needed for childcare/school)</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {YES_NO_WILL.map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      onClick={() => setWwcc(o.key)}
-                      className="p-2.5 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] transition-all"
-                      style={{
-                        borderColor: wwcc === o.key ? "#0077B6" : "#e5e7eb",
-                        background: wwcc === o.key ? "#e8f4fd" : "white",
-                      }}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Equipment owned</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    "Backpack / commercial vacuum",
-                    "Mop / bucket system",
-                    "Floor scrubber",
-                    "Carpet extractor",
-                    "Window kit",
-                    "Vehicle for transport",
-                    "Ladder (2m+)",
-                    "Eco / commercial chemicals",
-                  ].map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => toggle(e, equipment, setEquipment)}
-                      className="p-2 rounded-xl border-2 text-xs font-semibold text-[#1A1A2E] text-left transition-all"
-                      style={{
-                        borderColor: equipment.includes(e) ? "#0077B6" : "#e5e7eb",
-                        background: equipment.includes(e) ? "#e8f4fd" : "white",
-                      }}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  References <span className="font-normal text-gray-400">(optional but helps)</span>
-                </label>
-                <textarea
-                  value={references}
-                  onChange={(e) => setReferences(e.target.value)}
-                  rows={2}
-                  placeholder="Name, company, phone or email of past clients or employers"
-                  className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6] resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Current commitments <span className="font-normal text-gray-400">(other work / availability constraints)</span>
-                </label>
-                <input
-                  value={currentCommitments}
-                  onChange={(e) => setCurrentCommitments(e.target.value)}
-                  type="text"
-                  placeholder="e.g. 2 weekly clients, available weekends"
-                  className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Anything else? <span className="font-normal text-gray-400">(optional)</span>
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Specialisations, language skills, preferred work types..."
-                  className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6] resize-none"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                References <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <textarea
+                value={references}
+                onChange={(e) => setReferences(e.target.value)}
+                rows={2}
+                placeholder="Name, company, phone or email of past clients/employers"
+                className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6] resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                Current commitments <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                value={currentCommitments}
+                onChange={(e) => setCurrentCommitments(e.target.value)}
+                type="text"
+                placeholder="e.g. 2 weekly clients, available weekends"
+                className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                Anything else? <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Specialisations, language skills, preferred work types..."
+                className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-[#0077B6] resize-none"
+              />
             </div>
 
             <button
@@ -538,7 +505,7 @@ export default function ContractorApplicationForm() {
             >
               {submitting ? "Sending..." : "Submit application"} {!submitting && <ArrowRight size={14} />}
             </button>
-            <p className="text-xs text-gray-400 text-center mt-3">
+            <p className="text-xs text-gray-400 text-center">
               By applying you agree to be contacted about subcontracting opportunities. We do not sell or share your details.
             </p>
           </div>
