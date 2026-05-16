@@ -14,6 +14,16 @@ const services = [
   { label: "Specialist Cleaning", href: "/services/specialist-cleaning" },
 ];
 
+const navItems = [
+  { label: "For Business", href: "/business" },
+  { label: "For Cleaners", href: "/contractor" },
+  { label: "About", href: "/about" },
+  { label: "Locations", href: "/locations" },
+  { label: "Blog", href: "/blog" },
+  { label: "FAQ", href: "/faq" },
+  { label: "Contact", href: "/contact" },
+];
+
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -75,15 +85,15 @@ export default function Header() {
             )}
           </div>
 
-          {["About", "Locations", "Blog", "FAQ", "Contact"].map((item) => (
+          {navItems.map((item) => (
             <Link
-              key={item}
-              href={`/${item.toLowerCase()}`}
+              key={item.href}
+              href={item.href}
               className={`font-semibold text-sm transition-colors ${
                 scrolled ? "text-[#1A1A2E] hover:text-[#0077B6]" : "text-white/90 hover:text-white"
               }`}
             >
-              {item}
+              {item.label}
             </Link>
           ))}
         </nav>
@@ -136,14 +146,14 @@ export default function Header() {
               </Link>
             ))}
             <div className="h-px bg-gray-100 my-2" />
-            {["About", "Locations", "Blog", "FAQ", "Contact"].map((item) => (
+            {navItems.map((item) => (
               <Link
-                key={item}
-                href={`/${item.toLowerCase()}`}
+                key={item.href}
+                href={item.href}
                 className="px-3 py-2.5 text-sm font-medium text-[#1A1A2E] hover:text-[#0077B6] hover:bg-blue-50 rounded-xl"
                 onClick={() => setMobileOpen(false)}
               >
-                {item}
+                {item.label}
               </Link>
             ))}
             <div className="h-px bg-gray-100 my-2" />
