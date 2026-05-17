@@ -1,28 +1,31 @@
 /**
  * Cloudflare Pages Function — Lead Webhook
  *
- * Receives POSTs from any form on the site (residential quote, business lead,
- * contractor application) and fans them out to:
- *   1. Email notification to OPS_EMAIL (via MailChannels — free with Cloudflare Pages)
- *   2. Optional forward to a downstream webhook (Make.com, Zapier, n8n)
- *   3. Optional write to a Cloudflare D1 database (free tier)
+ * Every form submission on the site (residential quote, business lead,
+ * contractor application) POSTs to this endpoint.
  *
- * Environment variables to set in Cloudflare Pages settings:
- *   - OPS_EMAIL          (required) — where lead notifications go, e.g. info@cscleaners.com.au
+ * Guarantees:
+ *   1. WRITES TO D1 SYNCHRONOUSLY — if storage fails, returns 500 to client.
+ *      That way a lead can never be lost without us knowing.
+ *   2. Fires email notification (Resend) asynchronously — best-effort.
+ *   3. Fires downstream webhook (Make/Zapier) asynchronously — best-effort.
+ *
+ * Bindings (wrangler.toml):
+ *   - LEADS              (required) — D1 database
+ *
+ * Environment variables (set in Cloudflare Pages → Settings → Environment variables):
+ *   - RESEND_API_KEY     (optional) — get free at https://resend.com (3k/mo free)
+ *   - OPS_EMAIL          (optional) — where lead notifications go
+ *   - SENDER_EMAIL       (optional) — defaults to leads@cscleaners.com.au
  *   - WEBHOOK_URL        (optional) — downstream webhook (Make/Zapier)
- *   - SENDER_EMAIL       (optional) — defaults to noreply@cscleaners.com.au
- *
- * Bindings (optional):
- *   - LEADS              — D1 database. Run `wrangler d1 create cscleaners-leads` then bind it.
- *
- * Forms post JSON with a "formType" field: "business_lead" | "contractor_application" | "residential_quote"
  */
 
 interface Env {
+  LEADS: D1Database;
+  RESEND_API_KEY?: string;
   OPS_EMAIL?: string;
   SENDER_EMAIL?: string;
   WEBHOOK_URL?: string;
-  LEADS?: D1Database;
 }
 
 interface D1Database {
@@ -30,28 +33,23 @@ interface D1Database {
 }
 interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
-  run(): Promise<unknown>;
+  run(): Promise<{ success: boolean; meta?: { last_row_id?: number } }>;
 }
 
 interface LeadPayload {
   formType?: string;
-  // Common fields
   contactName?: string;
   name?: string;
   email?: string;
   phone?: string;
-  // Business-specific
   businessName?: string;
   premisesType?: string;
   suburb?: string;
   approxSqm?: string;
-  // Contractor-specific
   abn?: string;
   suburbs?: string[];
-  // Residential quote
   track?: string;
   price?: number;
-  // Anything else
   [key: string]: unknown;
 }
 
@@ -74,7 +72,8 @@ function renderEmailBody(payload: LeadPayload): { subject: string; html: string;
   const type = payload.formType ?? "unknown";
   const contact = payload.contactName ?? payload.name ?? "Unknown";
   const business = payload.businessName ?? "";
-  const suburb = payload.suburb ?? (Array.isArray(payload.suburbs) ? payload.suburbs.join(", ") : "");
+  const suburb =
+    payload.suburb ?? (Array.isArray(payload.suburbs) ? payload.suburbs.join(", ") : "");
 
   const friendlyType: Record<string, string> = {
     business_lead: "🏢 Business lead",
@@ -83,10 +82,9 @@ function renderEmailBody(payload: LeadPayload): { subject: string; html: string;
   };
   const heading = friendlyType[type] ?? `📩 ${type}`;
   const subject = business
-    ? `${heading} — ${business} (${suburb || "Melbourne"})`
+    ? `${heading} — ${business}${suburb ? ` (${suburb})` : ""}`
     : `${heading} — ${contact}${suburb ? ` (${suburb})` : ""}`;
 
-  // Build a tidy HTML body from all fields
   const rows = Object.entries(payload)
     .filter(([k]) => k !== "formType")
     .map(([k, v]) => {
@@ -96,7 +94,7 @@ function renderEmailBody(payload: LeadPayload): { subject: string; html: string;
     })
     .join("");
 
-  const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,sans-serif;background:#f8f9fa;margin:0;padding:24px"><table style="background:white;border-radius:12px;padding:24px;max-width:640px;margin:0 auto;box-shadow:0 1px 3px rgba(0,0,0,0.08)"><tr><td><h1 style="margin:0 0 8px;font-size:18px;color:#1a1a2e">${heading}</h1><p style="margin:0 0 18px;color:#666;font-size:13px">Received ${new Date().toUTCString()}</p><table style="width:100%;border-collapse:collapse">${rows}</table></td></tr></table></body></html>`;
+  const html = `<!doctype html><html><body style="font-family:system-ui,-apple-system,sans-serif;background:#f8f9fa;margin:0;padding:24px"><table style="background:white;border-radius:12px;padding:24px;max-width:640px;margin:0 auto;box-shadow:0 1px 3px rgba(0,0,0,0.08)"><tr><td><h1 style="margin:0 0 8px;font-size:18px;color:#1a1a2e">${heading}</h1><p style="margin:0 0 18px;color:#666;font-size:13px">Received ${new Date().toUTCString()}</p><table style="width:100%;border-collapse:collapse">${rows}</table><p style="margin:24px 0 0;color:#888;font-size:12px">View all leads at <a href="https://cscleaners.com.au/admin" style="color:#0077B6">cscleaners.com.au/admin</a></p></td></tr></table></body></html>`;
 
   const text = Object.entries(payload)
     .filter(([k]) => k !== "formType")
@@ -109,32 +107,37 @@ function renderEmailBody(payload: LeadPayload): { subject: string; html: string;
   return { subject, html, text };
 }
 
-async function sendViaMailChannels(opts: {
+async function sendViaResend(opts: {
+  apiKey: string;
   from: string;
   to: string;
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
-}): Promise<Response> {
-  return fetch("https://api.mailchannels.net/tx/v1/send", {
+}): Promise<void> {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${opts.apiKey}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
-      personalizations: [{ to: [{ email: opts.to }] }],
-      from: { email: opts.from, name: "CS Cleaners site" },
-      reply_to: opts.replyTo ? { email: opts.replyTo } : undefined,
+      from: opts.from,
+      to: opts.to,
+      reply_to: opts.replyTo,
       subject: opts.subject,
-      content: [
-        { type: "text/plain", value: opts.text },
-        { type: "text/html", value: opts.html },
-      ],
+      html: opts.html,
+      text: opts.text,
     }),
   });
+  if (!res.ok) {
+    console.error("Resend send failed:", res.status, await res.text());
+  }
 }
 
-async function writeToD1(db: D1Database, payload: LeadPayload): Promise<void> {
-  await db
+async function writeToD1(db: D1Database, payload: LeadPayload): Promise<number> {
+  const result = await db
     .prepare(
       `INSERT INTO leads (received_at, form_type, name, email, phone, suburb, payload_json)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -149,6 +152,7 @@ async function writeToD1(db: D1Database, payload: LeadPayload): Promise<void> {
       JSON.stringify(payload)
     )
     .run();
+  return result.meta?.last_row_id ?? -1;
 }
 
 export const onRequestOptions = () =>
@@ -165,24 +169,45 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     });
   }
 
+  // 1. WRITE TO D1 SYNCHRONOUSLY — must succeed or we return 500
+  if (!ctx.env.LEADS) {
+    console.error("LEADS D1 binding missing — lead would be lost!");
+    return new Response(
+      JSON.stringify({ success: false, error: "storage_not_configured" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+    );
+  }
+  let leadId: number;
+  try {
+    leadId = await writeToD1(ctx.env.LEADS, payload);
+  } catch (e) {
+    console.error("D1 write failed:", e);
+    return new Response(
+      JSON.stringify({ success: false, error: "storage_failed" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+    );
+  }
+
+  // 2. Best-effort async side effects (don't block client response)
   const tasks: Promise<unknown>[] = [];
 
-  // 1. Email to ops
-  if (ctx.env.OPS_EMAIL) {
+  // Email via Resend
+  if (ctx.env.RESEND_API_KEY && ctx.env.OPS_EMAIL) {
     const { subject, html, text } = renderEmailBody(payload);
     tasks.push(
-      sendViaMailChannels({
-        from: ctx.env.SENDER_EMAIL ?? "noreply@cscleaners.com.au",
+      sendViaResend({
+        apiKey: ctx.env.RESEND_API_KEY,
+        from: ctx.env.SENDER_EMAIL ?? "leads@cscleaners.com.au",
         to: ctx.env.OPS_EMAIL,
         subject,
         html,
         text,
         replyTo: payload.email,
-      }).catch((e) => console.error("mailchannels error:", e))
+      }).catch((e) => console.error("Resend error:", e))
     );
   }
 
-  // 2. Downstream webhook
+  // Downstream webhook (Make/Zapier)
   if (ctx.env.WEBHOOK_URL) {
     tasks.push(
       fetch(ctx.env.WEBHOOK_URL, {
@@ -190,28 +215,22 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payload,
+          leadId,
           receivedAt: new Date().toISOString(),
           source: "cscleaners.com.au",
         }),
-      }).catch((e) => console.error("webhook error:", e))
+      }).catch((e) => console.error("Webhook error:", e))
     );
   }
 
-  // 3. D1 database
-  if (ctx.env.LEADS) {
-    tasks.push(writeToD1(ctx.env.LEADS, payload).catch((e) => console.error("d1 error:", e)));
-  }
-
-  // Don't block on side-effects — they run via waitUntil if available
   ctx.waitUntil(Promise.allSettled(tasks));
 
-  return new Response(JSON.stringify({ success: true }), {
+  return new Response(JSON.stringify({ success: true, leadId }), {
     status: 200,
     headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
 };
 
-// Type augmentation for PagesFunction
 type PagesFunction<E = unknown> = (context: {
   request: Request;
   env: E;

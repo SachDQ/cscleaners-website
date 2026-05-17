@@ -5,3 +5,9 @@ pages_build_output_dir = "out"
 [vars]
 NEXT_PUBLIC_WEBHOOK_URL = ""
 NEXT_PUBLIC_GA_ID = ""
+
+# D1 lead storage — every form submission writes here, never lost
+[[d1_databases]]
+binding = "LEADS"
+database_name = "cscleaners-leads"
+database_id = "f23fb171-b9af-45ff-b46d-5d03571d3c7a"
